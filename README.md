@@ -7,9 +7,11 @@ https://ww2.mathworks.cn/matlabcentral/fileexchange/50923-jreftran-a-layered-thi
    l = free space wavelength, nm
    
    d = layer thickness vector, nm
+   
    n = layer complex refractive index vector
+   
    t0= angle of incidence
-    polarization should be 0 for TE (s-polarized), otherwise TM (p-polarized)
+   polarization should be 0 for TE (s-polarized), otherwise TM (p-polarized)
 Example: Finding the coefficients for a 200nm gold layer surrounded by air, using the Johnson and Christy data
     input:
         [r,t,R,T,A]=jreftran_rt(500,[NaN,200,NaN],[1,0.9707 + 1.8562i,1],0,0)
