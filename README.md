@@ -20,6 +20,7 @@ input:
         [r,t,R,T,A]=jreftran_rt(500,[NaN,200,NaN],[1,0.9707 + 1.8562i,1],0,0)
    
    output:
+       
        r = -0.4622 - 0.5066i               reflection coefficient
        
        t = -0.0047 + 0.0097i               transmission coefficient
