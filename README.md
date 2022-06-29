@@ -21,8 +21,13 @@ input:
    
    output:
        r = -0.4622 - 0.5066i               reflection coefficient
+       
        t = -0.0047 + 0.0097i               transmission coefficient
+       
        R = 0.4702                          reflectivity (fraction of intensity that is reflected)
+       
        T = 1.1593e-04                      transmissivity (fraction of intensity that is transmitted)
+       
        A = 0.5296                          absorptivity (fraction of intensity that is absorbed in the film stack)
+       
 '''
