@@ -3,10 +3,12 @@ reflection and transmission coefficients
 
 '''
 https://ww2.mathworks.cn/matlabcentral/fileexchange/50923-jreftran-a-layered-thin-film-transmission-and-reflection-coefficient-calculator?requestedDomain=zh
-    l = free space wavelength, nm
-    d = layer thickness vector, nm
-    n = layer complex refractive index vector
-    t0= angle of incidence
+   
+   l = free space wavelength, nm
+   
+   d = layer thickness vector, nm
+   n = layer complex refractive index vector
+   t0= angle of incidence
     polarization should be 0 for TE (s-polarized), otherwise TM (p-polarized)
 Example: Finding the coefficients for a 200nm gold layer surrounded by air, using the Johnson and Christy data
     input:
