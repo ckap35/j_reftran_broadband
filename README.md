@@ -1,4 +1,4 @@
-# j_reftran_broadband
+# Compute reflection and transmission coefficients for arbitrary lossy dielectric filmstack using transfer matrix formalism
 Compute reflection and transmission coefficients for arbitrary lossy dielectric filmstack using transfer matrix formalism
 
 '''
