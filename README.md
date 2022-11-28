@@ -1,5 +1,5 @@
 # j_reftran_broadband
-reflection and transmission coefficients
+Compute reflection and transmission coefficients for arbitrary lossy dielectric filmstack using transfer matrix formalism
 
 '''
 https://ww2.mathworks.cn/matlabcentral/fileexchange/50923-jreftran-a-layered-thin-film-transmission-and-reflection-coefficient-calculator?requestedDomain=zh
