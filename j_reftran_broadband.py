@@ -26,8 +26,8 @@ def jreftran_rt(wavelength, d, n, t0, polarization):
     incident medium to substrate. The first and last thicknesses are ignored
     and may be np.nan. Refractive indices use n + i*k for absorption.
     Use polarization=0 for TE (s) and polarization=1 for TM (p).
-    Incident and exit media must be lossless with propagating waves for the
-    power normalization used here.
+    Power fractions assume lossless incident and exit media with propagating
+    waves.
     """
     d = np.asarray(d, dtype=float)
     n = np.asarray(n, dtype=complex)
@@ -45,7 +45,7 @@ def jreftran_rt(wavelength, d, n, t0, polarization):
 
     matrix = np.identity(2, dtype=complex)
     for j in range(1, len(d) - 1):
-        # Only finite films contribute; the boundary media are semi-infinite.
+        # Characteristic matrix of the finite film.
         phase = -2 * np.pi * n[j] * d[j] * cos_theta[j] / wavelength
         layer = np.array([
             [np.cos(phase), 1j * np.sin(phase) / eta[j]],

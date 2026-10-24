@@ -18,11 +18,9 @@ python j_reftran_broadband.py
 
 In Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
 
-The script plots a wavelength sweep for 20 absorbing films, each 10 nm thick
-and preceded by a 2.4 µm air gap. The refractive indices are held fixed over
-100–10,000 nm. This illustrates interference in the stack; it is not a
-broadband prediction for gold. A material calculation needs refractive-index
-data at each wavelength.
+The example sweeps 100–10,000 nm for a stack of 20 absorbing films, each
+10 nm thick and preceded by a 2.4 µm air gap. Refractive indices are fixed
+throughout the sweep.
 
 To save the plot:
 
@@ -68,9 +66,8 @@ equal lengths.
 The function returns complex amplitude coefficients `r, t` and power fractions
 `R, T, A`. The power normalization assumes lossless incident and exit media
 with propagating waves. All layers are isotropic and nonmagnetic, and
-interference is coherent through the stack. The function evaluates one
-wavelength at a time; loop over wavelengths and supply dispersive indices
-when needed.
+interference is coherent through the stack. For a wavelength sweep, call
+`jreftran_rt` once per wavelength with the corresponding refractive indices.
 
 ## Checks
 
