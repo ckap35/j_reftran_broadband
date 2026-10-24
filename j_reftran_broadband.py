@@ -1,120 +1,103 @@
+"""Reflection and transmission of nonmagnetic thin-film stacks.
+
+Adapted from Shawn Divitt's MATLAB jreftran calculator:
+https://www.mathworks.com/matlabcentral/fileexchange/50923
+"""
+
+import argparse
+from pathlib import Path
+
 import numpy as np
-import gc
-from numba import jit
-from numba import njit, float32, int32,complex64
-import warnings
-import matplotlib.pyplot as plt
-warnings.filterwarnings('ignore')
-
-#@jit
-def sind(x):
-    y = np.sin(np.radians(x))
-    I = x/180.
-    if type(I) is not np.ndarray:   #Returns zero for elements where 'X/180' is an integer
-        if(I == np.trunc(I) and np.isfinite(I)):
-            return 0
-    return y
 
 
-'''
-https://ww2.mathworks.cn/matlabcentral/fileexchange/50923-jreftran-a-layered-thin-film-transmission-and-reflection-coefficient-calculator?requestedDomain=zh
-    l = free space wavelength, nm
-    d = layer thickness vector, nm
-    n = layer complex refractive index vector
-    t0= angle of incidence
-    polarization should be 0 for TE (s-polarized), otherwise TM (p-polarized)
-Example: Finding the coefficients for a 200nm gold layer surrounded by air, using the Johnson and Christy data
-    input:
-        [r,t,R,T,A]=jreftran_rt(500,[NaN,200,NaN],[1,0.9707 + 1.8562i,1],0,0)
-    output:
-        r = -0.4622 - 0.5066i               reflection coefficient
-        t = -0.0047 + 0.0097i               transmission coefficient
-        R = 0.4702                          reflectivity (fraction of intensity that is reflected)
-        T = 1.1593e-04                      transmissivity (fraction of intensity that is transmitted)
-        A = 0.5296                          absorptivity (fraction of intensity that is absorbed in the film stack)
-'''
+def sind(angle):
+    """Sine in degrees, with exact zeros at scalar multiples of 180."""
+    value = np.sin(np.radians(angle))
+    turns = angle / 180.0
+    if np.ndim(turns) == 0 and np.isfinite(turns) and turns == np.trunc(turns):
+        return 0.0
+    return value
+
 
 def jreftran_rt(wavelength, d, n, t0, polarization):
+    """Return amplitude coefficients r, t and power fractions R, T, A.
 
-    M = np.zeros((2, 2, d.shape[0]), dtype=complex)
-    M_t = np.identity(2, dtype=complex)
-    Z0 = 376.730313     #impedance of free space, Ohms
-    Y = n / Z0
-    g = 1j * 2 * np.pi * n / wavelength        #propagation constant in terms of free space wavelength and refractive index
-    t = (n[0] / n * sind(t0))
-    t2 = t*t        #python All arithmetic operates elementwise,Array multiplication is not matrix multiplication!!!
-    ct = np.sqrt(1 -t2);        # ct=sqrt(1-(n(1)./n*sin(t0)).^2); %cosine theta
-    if polarization == 0:       # tilted admittance
-        eta = Y * ct;       # tilted admittance, TE case
+    Wavelength and thicknesses d are in nm; t0 is in degrees. Layers run from
+    incident medium to substrate. The first and last thicknesses are ignored
+    and may be np.nan. Refractive indices use n + i*k for absorption.
+    Use polarization=0 for TE (s) and polarization=1 for TM (p).
+    Incident and exit media must be lossless with propagating waves for the
+    power normalization used here.
+    """
+    d = np.asarray(d, dtype=float)
+    n = np.asarray(n, dtype=complex)
+    if d.ndim != 1 or n.ndim != 1 or d.shape != n.shape or len(d) < 2:
+        raise ValueError("d and n must be one-dimensional arrays of equal length >= 2")
+
+    impedance = 376.730313  # Free-space impedance, ohms.
+    admittance = n / impedance
+    sin_theta = n[0] / n * sind(t0)
+    cos_theta = np.sqrt(1 - sin_theta**2)
+    if polarization == 0:
+        eta = admittance * cos_theta
     else:
-        eta = Y / ct;      # tilted admittance, TM case
-    delta = 1j * g * d * ct
-    ld = d.shape[0]
-    #M = np.zeros((2, 2, ld),dtype=complex)
-    for j in range(ld):
-        a = delta[j]
-        M[0, 0, j] = np.cos(a);
-        M[0, 1, j] = 1j / eta[j] * np.sin(a);
-        M[1, 0, j] = 1j * eta[j] * np.sin(a);
-        M[1, 1, j] = np.cos(a)
-        # ("M(:,:,{})={}\n\n".format(j,M[:,:,j]))
-    #M_t = np.identity(2,dtype=complex)        #total charateristic matrix
-    for j in range(1,ld - 1):
-        M_t = np.matmul(M_t,M[:,:, j])
+        eta = admittance / cos_theta
 
-    e_1, e_2 = eta[0], eta[-1]
-    De = M_t[0, 0] + M_t[0, 1] * eta[-1]
-    Nu = M_t[1, 0] + M_t[1, 1] * eta[-1]
-    if False:  # Add by Dr.zhu
-        Y_tot = (M_t(2, 1) + M_t(2, 2) * eta(len(d))) / (M_t(1, 1) + M_t(1, 2) * eta(len(d)))
-        eta_one = eta[0]
-        Re = Y_tot.real
-        Im = Y_tot.imag
-        fx = 2 * Im * eta[0]
+    matrix = np.identity(2, dtype=complex)
+    for j in range(1, len(d) - 1):
+        # Only finite films contribute; the boundary media are semi-infinite.
+        phase = -2 * np.pi * n[j] * d[j] * cos_theta[j] / wavelength
+        layer = np.array([
+            [np.cos(phase), 1j * np.sin(phase) / eta[j]],
+            [1j * eta[j] * np.sin(phase), np.cos(phase)],
+        ])
+        matrix = matrix @ layer
 
-    e_de_nu = e_1 * De + Nu
-    r = (e_1 * De - Nu) / e_de_nu;
-    t = 2 * e_1 / e_de_nu;
+    incident, exit_medium = eta[0], eta[-1]
+    field = matrix[0, 0] + matrix[0, 1] * exit_medium
+    flux = matrix[1, 0] + matrix[1, 1] * exit_medium
+    denominator = incident * field + flux
 
-    R = abs(r) * abs(r);
-    T = (e_2.real / e_1) * abs(t) * abs(t)
-    T = T.real
-    a = De * np.conj(Nu) - e_2
-    A = (4 * e_1 * a.real) / (abs(e_de_nu)*abs(e_de_nu));
-    A = A.real
-
+    r = (incident * field - flux) / denominator
+    t = 2 * incident / denominator
+    R = abs(r)**2
+    T = ((exit_medium.real / incident) * abs(t)**2).real
+    A = (4 * incident * (field * np.conj(flux) - exit_medium).real
+         / abs(denominator)**2).real
     return r, t, R, T, A
 
 
-#plot wavelength dependence
-max_pairs=10
-all_T=np.array([])
-all_R=np.array([])
-all_A=np.array([])
-all_z=np.array([])
-d = np.array([np.NaN])     #%d = layer thickness vector, nm
-n = np.array([1])
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Plot a 20-film wavelength sweep.")
+    parser.add_argument("--output", type=Path, help="Save the figure instead of opening a window")
+    args = parser.parse_args(argv)
+
+    import matplotlib.pyplot as plt
+
+    # Twenty absorbing films, each preceded by a 2.4 um air gap.
+    d = np.r_[np.nan, np.tile([2400.0, 10.0], 20), np.nan]
+    n = np.r_[1.0, np.tile([1.0, 0.9707 + 1.8562j], 20), 1.0]
+    wavelengths = np.logspace(2, 4, num=1000)
+    fractions = np.array([
+        jreftran_rt(wavelength, d, n, 0, 0)[2:] for wavelength in wavelengths
+    ])
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for values, label in zip(fractions.T, ["Reflection", "Transmission", "Absorption"]):
+        ax.semilogx(wavelengths, values, label=label)
+    ax.set_xlabel("Wavelength [nm]")
+    ax.set_ylabel("Power fraction")
+    ax.set_title("20-film stack with fixed refractive indices")
+    ax.legend()
+    fig.tight_layout()
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(args.output, dpi=160)
+        plt.close(fig)
+    else:
+        plt.show()
+    return 0
 
 
-for pairs in range(0,max_pairs,1):
-    n=np.append(n,np.array([1,0.9707/1+1.8562j/1, 1.0, 0.9707+1.8562j/1]))
-    n_end=np.append(n,np.array([1]))
-    d=np.append(d,np.array([60*40,10,60*40,10]))
-    d_end=np.append(d,np.array([np.NaN]))
-
-
-
-wavelengths=np.logspace(2,4,num=1000)
-for wavelength in wavelengths:
-    r, t, R, T, A = jreftran_rt(wavelength, d_end, n_end, 0, 0)
-    all_R=np.append(all_R,R)
-    all_T=np.append(all_T,T)
-    all_A=np.append(all_A,A)
-
-plt.plot(wavelengths,all_R,"-b", label="R")
-plt.plot(wavelengths,all_T,"-k", label="T")
-plt.plot(wavelengths,all_A,"-r", label="A")
-plt.gca().legend()
-plt.ylabel('Reflectance')
-plt.xlabel('wavelength')
-plt.show()
+if __name__ == "__main__":
+    raise SystemExit(main())
